@@ -2,7 +2,7 @@ import axios from 'axios';
 import { useState, useEffect } from 'react';
 
 function Admin() {
-  const [playlist, setPlaylist] = useState(null);
+  const [activeTab, setActiveTab] = useState('create');
   const [newPlay, setNewPlay] = useState({
     play_name: '',
     play_genre: '',
@@ -10,187 +10,233 @@ function Admin() {
     play_description: '',
     play_thumbnail: ''
   });
+  const [playlist, setPlaylist] = useState([]);
   const [editPlay, setEditPlay] = useState(null);
-  const [activeTab, setActiveTab] = useState('list');
-  const [loading, setLoading] = useState(true);
-  const [confirmDelete, setConfirmDelete] = useState(null);
-  
-  // Pagination state
-  const [currentPage, setCurrentPage] = useState(1);
-  const itemsPerPage = 9; // Number of items per page
+  const [showModal, setShowModal] = useState(false);
+  const [searchTerm, setSearchTerm] = useState(''); // New state for search term
 
   useEffect(() => {
     axios.get('https://webfmsi.singapoly.com/api/playlist/20')
       .then(response => {
         setPlaylist(response.data.datas);
-        setLoading(false);
       })
-      .catch(error => {
-        console.error('Error fetching data:', error);
-        setLoading(false);
-      });
+      .catch(error => console.error('Error fetching playlists:', error));
   }, []);
 
-  // Handle Edit input change
-  const handleEditInputChange = (e) => {
+  const handleInputChange = (e) => {
     const { name, value } = e.target;
-    setEditPlay({ ...editPlay, [name]: value });
+    setNewPlay({ ...newPlay, [name]: value });
   };
 
-  // Handle Add Playlist
   const handleAddPlay = (e) => {
     e.preventDefault();
-    axios.post('https://webfmsi.singapoly.com/api/playlist', newPlay)
+    axios.post('https://webfmsi.singapoly.com/api/playlist/20', newPlay)
       .then(response => {
-        setPlaylist(prev => ({ ...prev, datas: [...prev.datas, response.data] }));
-        setNewPlay({
-          play_name: '',
-          play_genre: '',
-          play_url: '',
-          play_description: '',
-          play_thumbnail: ''
-        });
+        alert('Playlist added successfully!');
+        setPlaylist(prev => [...prev, response.data]);
+        setNewPlay({ play_name: '', play_genre: '', play_url: '', play_description: '', play_thumbnail: '' });
       })
       .catch(error => console.error('Error adding playlist:', error));
   };
 
-  // Handle Update Playlist
+  const handleEditPlay = (id) => {
+    const playToEdit = playlist.find(item => item.id_play === id);
+    setEditPlay(playToEdit);
+    setShowModal(true);
+  };
+
   const handleUpdatePlay = (e) => {
     e.preventDefault();
-    axios.put(`https://webfmsi.singapoly.com/api/playlist/${editPlay.id_play}`, editPlay)
-      .then(response => {
-        const updatedPlaylist = playlist.map(item =>
-          item.id_play === response.data.id_play ? response.data : item
-        );
-        setPlaylist(updatedPlaylist);
-        setEditPlay(null);
-      })
-      .catch(error => console.error('Error updating playlist:', error));
+    if (editPlay && editPlay.id_play) {
+
+      axios.delete(`https://webfmsi.singapoly.com/api/playlist/${editPlay.id_play}`)
+        .then(() => {
+          axios.post('https://webfmsi.singapoly.com/api/playlist/20', {
+            id_play: editPlay.id_play,
+            play_name: editPlay.play_name,
+            play_genre: editPlay.play_genre,
+            play_url: editPlay.play_url,
+            play_description: editPlay.play_description,
+            play_thumbnail: editPlay.play_thumbnail
+          })
+            .then(response => {
+              setPlaylist(prevPlaylist => [
+                ...prevPlaylist.filter(item => item.id_play !== editPlay.id_play),
+                response.data
+              ]);
+              setShowModal(false);
+              setEditPlay(null);
+            })
+            .catch(error => console.error('Error creating playlist:', error));
+        })
+        .catch(error => console.error('Error deleting playlist:', error));
+    }
   };
 
-  // Handle Delete Playlist
   const handleDeletePlay = (id) => {
-    axios.delete(`https://webfmsi.singapoly.com/api/playlist/${id}`)
+    if (window.confirm('Are you sure you want to delete this playlist?')) {
+      axios.delete(`https://webfmsi.singapoly.com/api/playlist/${id}`)
       .then(() => {
-        setPlaylist(playlist.filter(item => item.id_play !== id));
-        setConfirmDelete(null); // Close confirmation dialog after delete
+        setPlaylist({ ...playlist, datas: playlist.datas.filter(item => item.id_play !== id) });
       })
       .catch(error => console.error('Error deleting playlist:', error));
+    }
   };
 
-  // Pagination logic
-  const totalItems = playlist ? playlist.length : 0;
-  const totalPages = Math.ceil(totalItems / itemsPerPage);
-
-  const indexOfLastItem = currentPage * itemsPerPage;
-  const indexOfFirstItem = indexOfLastItem - itemsPerPage;
-  const currentItems = playlist ? playlist.slice(indexOfFirstItem, indexOfLastItem) : [];
-
-  const paginate = (pageNumber) => setCurrentPage(pageNumber);
+  // Filter playlists based on search term
+  const filteredPlaylist = playlist.filter(item => 
+    item.play_name.toLowerCase().includes(searchTerm.toLowerCase()) || 
+    item.play_genre.toLowerCase().includes(searchTerm.toLowerCase()) ||
+    item.play_description.toLowerCase().includes(searchTerm.toLowerCase())
+  );
 
   return (
-    <div className="min-h-screen bg-gray-100">
-      <main className="flex-1 p-6 container mx-auto">
+    <div className="w-full flex flex-col">
+      {/* Tab Buttons */}
+      <div className="flex justify-center space-x-4 p-4 bg-gray-200">
+        <button
+          onClick={() => setActiveTab('create')}
+          className={`px-4 py-2 ${activeTab === 'create' ? 'bg-blue-500 text-white' : 'bg-white text-black'} rounded`}
+        >
+          Create Playlist
+        </button>
+        <button
+          onClick={() => setActiveTab('list')}
+          className={`px-4 py-2 ${activeTab === 'list' ? 'bg-blue-500 text-white' : 'bg-white text-black'} rounded`}
+        >
+          List Playlist
+        </button>
+      </div>
 
-        {/* Tab navigation */}
-        <div className="mb-6 flex justify-center space-x-4">
-          <button
-            onClick={() => setActiveTab('list')}
-            className={`px-4 py-2 rounded-md text-lg font-medium ${activeTab === 'list' ? 'bg-blue-500 text-white' : 'bg-gray-200'}`}
-          >
-            Playlist List
-          </button>
-          <button
-            onClick={() => setActiveTab('create')}
-            className={`px-4 py-2 rounded-md text-lg font-medium ${activeTab === 'create' ? 'bg-blue-500 text-white' : 'bg-gray-200'}`}
-          >
-            Create Playlist
-          </button>
+      {/* Create Playlist Tab */}
+      {activeTab === 'create' && (
+        <div className="bg-white p-6 mb-8 rounded-lg shadow-md">
+          <h3 className="text-xl font-semibold mb-4">Add New Playlist</h3>
+          <form onSubmit={handleAddPlay}>
+            <input
+              type="text"
+              name="play_name"
+              value={newPlay.play_name}
+              onChange={handleInputChange}
+              placeholder="Playlist Name"
+              className="w-full mb-2 p-2 border border-gray-300 rounded"
+              required
+            />
+            <input
+              type="text"
+              name="play_url"
+              value={newPlay.play_url}
+              onChange={handleInputChange}
+              placeholder="Playlist URL"
+              className="w-full mb-2 p-2 border border-gray-300 rounded"
+              required
+            />
+            <input
+              type="text"
+              name="play_thumbnail"
+              value={newPlay.play_thumbnail}
+              onChange={handleInputChange}
+              placeholder="Thumbnail URL"
+              className="w-full mb-2 p-2 border border-gray-300 rounded"
+            />
+            <select
+              name="play_genre"
+              value={newPlay.play_genre}
+              onChange={handleInputChange}
+              className="w-full mb-2 p-2 border border-gray-300 rounded"
+              required
+            >
+              <option value="" disabled>Select Genre</option>
+              <option value="music">Music</option>
+              <option value="song">Song</option>
+              <option value="movie">Movie</option>
+              <option value="education">Education</option>
+              <option value="others">Others</option>
+            </select>
+            <textarea
+              name="play_description"
+              value={newPlay.play_description}
+              onChange={handleInputChange}
+              placeholder="Playlist Description"
+              className="w-full mb-2 p-2 border border-gray-300 rounded"
+            />
+            <button type="submit" className="bg-blue-500 text-white px-6 py-2 rounded">
+              Add Playlist
+            </button>
+          </form>
         </div>
+      )}
 
-        {/* Tab content */}
-        {activeTab === 'list' && (
-          <>
-            <h2 className="text-4xl font-semibold text-center mb-8 text-gray-800">Playlist Data</h2>
+      {/* List Playlist Tab */}
+      {activeTab === 'list' && (
+        <div className="overflow-auto bg-white shadow-md rounded-lg p-6">
+          <h3 className="text-xl font-semibold mb-4">Playlist List</h3>
 
-            {loading ? (
-              <div className="flex justify-center">
-                <div className="animate-spin rounded-full h-16 w-16 border-t-4 border-blue-500 border-solid"></div>
-              </div>
-            ) : (
-              <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-8">
-                {currentItems.map((item) => (
-                  <div key={item.id_play} className="bg-white rounded-lg shadow-lg overflow-hidden transform hover:scale-105 transition duration-300 ease-in-out">
-                    <img
-                      src={item.play_thumbnail}
-                      alt={item.play_name}
-                      className="w-full h-56 object-cover rounded-t-lg"
-                    />
-                    <div className="p-4">
-                      <h3 className="text-xl font-semibold text-gray-800">{item.play_name}</h3>
-                      <p className="text-sm text-gray-500">{item.play_genre}</p>
-                      <p className="mt-2 text-sm text-gray-700">{item.play_description}</p>
-                    </div>
+          {/* Search input */}
+          <input
+            type="text"
+            placeholder="Search playlists..."
+            className="w-full mb-4 p-2 border border-gray-300 rounded"
+            value={searchTerm}
+            onChange={(e) => setSearchTerm(e.target.value)}
+          />
 
-                    {/* Edit and Delete Buttons */}
-                    <div className="flex justify-between p-4">
-                      <button
-                        onClick={() => setEditPlay(item)}
-                        className="bg-yellow-500 text-white px-4 py-2 rounded"
-                      >
-                        Edit
-                      </button>
-                      <button
-                        onClick={() => setConfirmDelete(item.id_play)}
-                        className="bg-red-500 text-white px-4 py-2 rounded"
-                      >
-                        Delete
-                      </button>
-                    </div>
+          <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-6">
+            {filteredPlaylist.length > 0 ? (
+              filteredPlaylist.map((item) => (
+                <div key={item.id_play} className="bg-white p-4 rounded-lg shadow-lg">
+                  <div className="mt-4">
+                    <img src={item.play_thumbnail} alt={item.play_name} className="w-full h-auto rounded-lg shadow-sm" />
                   </div>
-                ))}
-              </div>
+                  <h3 className="text-lg font-semibold">{item.play_name}</h3>
+                  <p className="text-sm text-gray-500">{item.play_genre}</p>
+                  <p className="mt-2 text-sm text-gray-600">{item.play_description}</p>
+                  <div className="mt-4">
+                    <a href={item.play_url} className="text-blue-500" target="_blank" rel="noopener noreferrer">
+                      Watch Video
+                    </a>
+                  </div>
+                  <div className="flex space-x-4 mt-4">
+                    {/* Edit Icon (SVG) */}
+                    <button
+                      onClick={() => handleEditPlay(item.id_play)}
+                      className="text-white px-4 py-2 rounded flex items-center"
+                    >
+                      <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth="1.5" stroke="currentColor" className="w-6 h-6 text-green-500">
+                        <path strokeLinecap="round" strokeLinejoin="round" d="m16.862 4.487 1.687-1.688a1.875 1.875 0 1 1 2.652 2.652L10.582 16.07a4.5 4.5 0 0 1-1.897 1.13L6 18l.8-2.685a4.5 4.5 0 0 1 1.13-1.897l8.932-8.931Zm0 0L19.5 7.125M18 14v4.75A2.25 2.25 0 0 1 15.75 21H5.25A2.25 2.25 0 0 1 3 18.75V8.25A2.25 2.25 0 0 1 5.25 6H10" />
+                      </svg>
+                    </button>
+
+                    {/* Delete Icon (SVG) */}
+                    <button
+                      onClick={() => handleDeletePlay(item.id_play)}
+                      className="text-white px-4 py-2 rounded flex items-center"
+                    >
+                      <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth="1.5" stroke="currentColor" className="w-6 h-6 text-red-500">
+                        <path strokeLinecap="round" strokeLinejoin="round" d="M6 6l12 12M6 18L18 6" />
+                      </svg>
+                    </button>
+                  </div>
+                </div>
+              ))
+            ) : (
+              <p className="text-center text-lg text-gray-600">No playlists found.</p>
             )}
+          </div>
+        </div>
+      )}
 
-            {/* Pagination Controls */}
-            <div className="flex justify-center space-x-4 mt-8">
-              <button
-                onClick={() => paginate(currentPage - 1)}
-                disabled={currentPage === 1}
-                className="bg-gray-300 text-gray-700 px-4 py-2 rounded disabled:opacity-50"
-              >
-                Prev
-              </button>
-              {Array.from({ length: totalPages }, (_, index) => (
-                <button
-                  key={index}
-                  onClick={() => paginate(index + 1)}
-                  className={`px-4 py-2 rounded ${currentPage === index + 1 ? 'bg-blue-500 text-white' : 'bg-gray-200'}`}
-                >
-                  {index + 1}
-                </button>
-              ))}
-              <button
-                onClick={() => paginate(currentPage + 1)}
-                disabled={currentPage === totalPages}
-                className="bg-gray-300 text-gray-700 px-4 py-2 rounded disabled:opacity-50"
-              >
-                Next
-              </button>
-            </div>
-          </>
-        )}
-
-        {/* Create Playlist Tab */}
-        {activeTab === 'create' && (
-          <div className="bg-white p-6 mb-8 rounded-lg shadow-md">
-            <h3 className="text-xl font-semibold mb-4">Add New Playlist</h3>
-            <form onSubmit={handleAddPlay}>
+      {/* Edit Modal */}
+      {showModal && editPlay && (
+        <div className="fixed inset-0 bg-gray-500 bg-opacity-50 flex justify-center items-center">
+          <div className="bg-white p-8 rounded-lg shadow-lg w-96">
+            <h3 className="text-xl font-semibold mb-4">Edit Playlist</h3>
+            <form onSubmit={handleUpdatePlay}>
               <input
                 type="text"
                 name="play_name"
-                value={newPlay.play_name}
-                onChange={(e) => setNewPlay({ ...newPlay, play_name: e.target.value })}
+                value={editPlay.play_name}
+                onChange={(e) => setEditPlay({ ...editPlay, play_name: e.target.value })}
                 placeholder="Playlist Name"
                 className="w-full mb-2 p-2 border border-gray-300 rounded"
                 required
@@ -198,8 +244,8 @@ function Admin() {
               <input
                 type="text"
                 name="play_url"
-                value={newPlay.play_url}
-                onChange={(e) => setNewPlay({ ...newPlay, play_url: e.target.value })}
+                value={editPlay.play_url}
+                onChange={(e) => setEditPlay({ ...editPlay, play_url: e.target.value })}
                 placeholder="Playlist URL"
                 className="w-full mb-2 p-2 border border-gray-300 rounded"
                 required
@@ -207,58 +253,48 @@ function Admin() {
               <input
                 type="text"
                 name="play_thumbnail"
-                value={newPlay.play_thumbnail}
-                onChange={(e) => setNewPlay({ ...newPlay, play_thumbnail: e.target.value })}
+                value={editPlay.play_thumbnail}
+                onChange={(e) => setEditPlay({ ...editPlay, play_thumbnail: e.target.value })}
                 placeholder="Thumbnail URL"
                 className="w-full mb-2 p-2 border border-gray-300 rounded"
               />
-              <input
-                type="text"
+              <select
                 name="play_genre"
-                value={newPlay.play_genre}
-                onChange={(e) => setNewPlay({ ...newPlay, play_genre: e.target.value })}
-                placeholder="Playlist Genre"
+                value={editPlay.play_genre}
+                onChange={(e) => setEditPlay({ ...editPlay, play_genre: e.target.value })}
                 className="w-full mb-2 p-2 border border-gray-300 rounded"
                 required
-              />
+              >
+                <option value="" disabled>Select Genre</option>
+                <option value="music">Music</option>
+                <option value="song">Song</option>
+                <option value="movie">Movie</option>
+                <option value="education">Education</option>
+                <option value="others">Others</option>
+              </select>
               <textarea
                 name="play_description"
-                value={newPlay.play_description}
-                onChange={(e) => setNewPlay({ ...newPlay, play_description: e.target.value })}
+                value={editPlay.play_description}
+                onChange={(e) => setEditPlay({ ...editPlay, play_description: e.target.value })}
                 placeholder="Playlist Description"
                 className="w-full mb-2 p-2 border border-gray-300 rounded"
               />
-              <button type="submit" className="bg-blue-500 text-white px-6 py-2 rounded">
-                Add Playlist
-              </button>
+              <div className="flex justify-between">
+                <button
+                  type="button"
+                  onClick={() => setShowModal(false)}
+                  className="bg-gray-500 text-white px-6 py-2 rounded"
+                >
+                  Cancel
+                </button>
+                <button type="submit" className="bg-blue-500 text-white px-6 py-2 rounded">
+                  Update Playlist
+                </button>
+              </div>
             </form>
-          </div>
-        )}
-      </main>
-
-      {/* Delete Confirmation Modal */}
-      {confirmDelete && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex justify-center items-center z-50">
-          <div className="bg-white p-6 rounded-lg shadow-lg w-80 text-center">
-            <p className="mb-4 text-xl text-gray-800">Are you sure you want to delete this playlist?</p>
-            <div className="flex justify-between">
-              <button
-                onClick={() => handleDeletePlay(confirmDelete)}
-                className="bg-red-500 text-white px-4 py-2 rounded"
-              >
-                Yes, Delete
-              </button>
-              <button
-                onClick={() => setConfirmDelete(null)}
-                className="bg-gray-300 text-gray-700 px-4 py-2 rounded"
-              >
-                Cancel
-              </button>
-            </div>
           </div>
         </div>
       )}
-
     </div>
   );
 }

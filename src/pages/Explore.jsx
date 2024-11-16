@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
 import axios from 'axios';
-
+import Admin from './Admin';
 function Explore() {
   const [playlistData, setPlaylistData] = useState([]);
   const [filteredData, setFilteredData] = useState([]);
@@ -17,7 +17,7 @@ function Explore() {
   const books = [
     { title: 'Natural Teak Wood', link: 'https://drive.google.com/file/d/1Jo-JYyVxVqQWKfltbDj5lsmHVa6iP5zo/preview' }, // Updated link
     { title: 'Decorative', link: 'https://drive.google.com/file/d/1ukFybHR2yQ31jBj561B3tPzgjXrp--X8/preview' },
-    { title: 'Bamboo Wind Chime', link: 'https://drive.google.com/file/d/1jtKVL_6NQ3c_dD7reUkeLQAlOqoy7qzn/preview' },
+    { title: 'Bamboo Wind', link: 'https://drive.google.com/file/d/1jtKVL_6NQ3c_dD7reUkeLQAlOqoy7qzn/preview' },
     // Add more books here
   ];
 
@@ -83,9 +83,15 @@ function Explore() {
           </button>
           <button
             onClick={() => setActiveTab('BOOK')}
-            className={`px-6 py-2 rounded-r-lg ${activeTab === 'BOOK' ? 'bg-blue-500 text-white' : 'bg-gray-200'}`}
+            className={`px-6 py-2 ${activeTab === 'BOOK' ? 'bg-blue-500 text-white' : 'bg-gray-200'}`}
           >
             BOOK
+          </button>
+          <button
+            onClick={() => setActiveTab('MANAGE')}
+            className={`px-6 py-2 rounded-r-lg ${activeTab === 'MANAGE' ? 'bg-blue-500 text-white' : 'bg-gray-200'}`}
+          >
+            MANAGE
           </button>
         </div>
 
@@ -165,7 +171,7 @@ function Explore() {
               </>
             )}
           </div>
-        ) : (
+        ) : activeTab === 'BOOK' ? (
           // BOOK Tab Content
           <div>
             <h2 className="text-2xl text-center mb-6">Available Books</h2>
@@ -181,6 +187,11 @@ function Explore() {
                 </div>
               ))}
             </div>
+          </div>
+        ) : (
+          // MANAGE Tab Content
+          <div className="text-center">
+          <Admin />
           </div>
         )}
 

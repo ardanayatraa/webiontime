@@ -62,8 +62,11 @@ function Home() {
       >
         <div className="w-1/2 px-8">
           <h1 className="text-4xl font-bold text-white leading-tight">CV. WIDHI ASIH BALI EXPORT</h1>
-          <p className="text-lg text-white mt-4">Produced locally, delivered worldwide.</p>
-          <h2 className="text-3xl font-semibold text-yellow-500 mt-8">OUR STORY</h2>
+          <p className="text-lg text-white mb-8 mt-4">Produced locally, delivered worldwide.</p>
+         <a href="/catalog" className="text-3xl font-semibold text-yellow-500 mt-12">
+          OUR CATALOG
+        </a>
+
         </div>
         <div className="w-1/2 hidden lg:block"></div>
       </section>
